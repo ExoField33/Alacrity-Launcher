@@ -3,7 +3,16 @@ namespace Alacrity.Launcher.Core;
 public sealed class LegacyProfileIsolationService
 {
     private static readonly string[] DirectoryNames = { "Players", "Worlds" };
-    private static readonly string[] FileNames = { "achievements.dat", "config.json", "favorites.json", "input profiles.json" };
+    // config.dat belongs to older Terraria releases. Leaving it at the shared
+    // root lets a newer release import its incompatible settings on next launch.
+    private static readonly string[] FileNames = {
+        "achievements.dat",
+        "config.dat",
+        "config.json",
+        "favorites.json",
+        "input profiles.json",
+        "servers.dat"
+    };
 
     public LegacyProfileSwapState CreateState(string currentVersion, string legacyVersion, string? terrariaDocumentsDirectory = null)
     {

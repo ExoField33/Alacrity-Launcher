@@ -4,12 +4,10 @@ On first launch, the launcher copies `data/versions.template.json` to `data/vers
 
 Add historical versions by inserting a `version` and its matching Windows depot `manifestId` from SteamDB into `src/Alacrity.Launcher/data/versions.template.json` before publishing:
 
-```json
 {
   "version": "1.3.5.3",
   "manifestId": "1234567890123456789"
 }
-```
 
 The launcher uses Terraria app `105600` and Windows depot `105601`. Keep one entry per version.
 
@@ -19,4 +17,4 @@ Historical depot downloads use DepotDownloader because Steam requires authentica
 
 DepotDownloader remains a separate GPL-2.0 tool. Its upstream source and license are identified in `THIRD-PARTY-NOTICES.txt`, which is included with launcher releases.
 
-For Terraria 1.3.5.3 and older, choosing the recommended isolated profile option temporarily renames only `Players`, `Worlds`, `achievements.dat`, `config.json`, `favorites.json`, and `input profiles.json` in `Documents/My Games/Terraria`. A journal records the operation so the next launcher start can restore an interrupted swap.
+For Terraria 1.3.5.3 and older, choosing the recommended isolated profile option temporarily renames only `Players`, `Worlds`, `achievements.dat`, `config.dat`, `config.json`, `favorites.json`, `input profiles.json`, and `servers.dat` in `Documents/My Games/Terraria`. A journal records the operation so the next launcher start can restore an interrupted swap.

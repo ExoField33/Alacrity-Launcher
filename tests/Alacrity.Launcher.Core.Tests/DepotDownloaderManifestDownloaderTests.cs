@@ -24,7 +24,9 @@ public sealed class DepotDownloaderManifestDownloaderTests
         Assert.Contains("-username \"example-user\"", arguments, StringComparison.Ordinal);
         Assert.Contains("-remember-password", arguments, StringComparison.Ordinal);
         Assert.Contains("-dir \"C:\\launcher\\Versions\\1.4.5.8.1.staging-test\"", arguments, StringComparison.Ordinal);
-        Assert.DoesNotContain("-password", arguments, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            argument => string.Equals(argument, "-password", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain("steamcmd", arguments, StringComparison.OrdinalIgnoreCase);
     }
 }
