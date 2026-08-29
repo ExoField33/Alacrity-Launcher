@@ -1,0 +1,17 @@
+# Build output
+artifacts/
+**/bin/
+**/obj/
+
+# Visual Studio and local tooling
+.vs/
+
+# Runtime state and downloaded game files
+data/launcher-settings.json
+data/versions.json
+Logs/
+Recovery/
+Tools/
+Versions/
+launcher-startup-error.txt
+PrepRelease.bat

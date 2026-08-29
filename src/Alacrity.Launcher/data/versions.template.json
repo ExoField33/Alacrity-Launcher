@@ -1,0 +1,392 @@
+{
+  "steamAppId": 105600,
+  "windowsDepotId": 105601,
+  "versions": [
+    {
+      "version": "1.4.5.8",
+      "manifestId": "2046220459945595868",
+      "isAutomaticallyDiscovered": true
+    },
+    {
+      "version": "1.4.5.7",
+      "manifestId": "6017787954815030231",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.5.6",
+      "manifestId": "5751495116255795831",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.5.5",
+      "manifestId": "6743406415940378864",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.5.4",
+      "manifestId": "5970352987378896743",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.5.3",
+      "manifestId": "1489143519882729035",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.5.2",
+      "manifestId": "7114157149772065225",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.5.1",
+      "manifestId": "8782376101177180433",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.5.0",
+      "manifestId": "2276312979028605664",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.9",
+      "manifestId": "4634556633439391598",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.8.1",
+      "manifestId": "102254092487371348",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.8",
+      "manifestId": "3692020715162142090",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.7",
+      "manifestId": "7600396947186926677",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.6",
+      "manifestId": "1986405368578883619",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.5",
+      "manifestId": "9089490579085838330",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.4",
+      "manifestId": "5390910954031110694",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.3",
+      "manifestId": "5640082568741623928",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.2",
+      "manifestId": "556023213915329218",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4.1",
+      "manifestId": "110777768425127289",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.4",
+      "manifestId": "9062646368169776937",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.3.6",
+      "manifestId": "4362065484837434637",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.3.5",
+      "manifestId": "3794139875909459783",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.3.4",
+      "manifestId": "1492974777303518694",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.3.3",
+      "manifestId": "6055827237270785890",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.3.2",
+      "manifestId": "7573196773923640738",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.3.1",
+      "manifestId": "2583717375829377931",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.3",
+      "manifestId": "2401089009711595033",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.2.3",
+      "manifestId": "35858588594634959",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.2.2",
+      "manifestId": "5205140597813889539",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.2.1",
+      "manifestId": "507901301914737542",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.2",
+      "manifestId": "4792493373596333882",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.1.2",
+      "manifestId": "7174777254123425714",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.1.1",
+      "manifestId": "8445078731500628527",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.1",
+      "manifestId": "2857434596711182063",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.0.5",
+      "manifestId": "5578977409290338966",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.0.4",
+      "manifestId": "4627776625919363141",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.0.3",
+      "manifestId": "400869223158200473",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.0.2",
+      "manifestId": "3928411477451879911",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.4.0.1",
+      "manifestId": "982630871057430331",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.5.3",
+      "manifestId": "8115792227484220109",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.5.2",
+      "manifestId": "4963288974433434036",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.5.1",
+      "manifestId": "2659464619157023246",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.5",
+      "manifestId": "5600735809725268128",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.4.4",
+      "manifestId": "7118084600027986257",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.4.3",
+      "manifestId": "6620202942746136387",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.4.2",
+      "manifestId": "4606046863940759363",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.4.1",
+      "manifestId": "9068693499074602683",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.4",
+      "manifestId": "3514095875374335516",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.3.3",
+      "manifestId": "7340682334336327551",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.3.2",
+      "manifestId": "7250605150353484052",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.3.1",
+      "manifestId": "3874793985052337375",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.3",
+      "manifestId": "2815579254257354684",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.2.1",
+      "manifestId": "3490554075187311728",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.2",
+      "manifestId": "2032235115638138428",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.1.1",
+      "manifestId": "1191364476941491444",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.1",
+      "manifestId": "2679835326116187769",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.8",
+      "manifestId": "4187789340605599532",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.7",
+      "manifestId": "1141292393149860915",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.6",
+      "manifestId": "4359342544884831593",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.5",
+      "manifestId": "6779472984295384730",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.4",
+      "manifestId": "6548034163903474739",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.3",
+      "manifestId": "2895227600346198332",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.2",
+      "manifestId": "9114151810677589101",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.3.0.1",
+      "manifestId": "5455170145185841928",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.4.1",
+      "manifestId": "1270558334791485575",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.4",
+      "manifestId": "1099303361500584922",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.3.1",
+      "manifestId": "8462941823335276978",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.3",
+      "manifestId": "3984142841222489697",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.2",
+      "manifestId": "5761620975617404996",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.1.2",
+      "manifestId": "6886430218651002374",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.1.1",
+      "manifestId": "2484440468158361044",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.1",
+      "manifestId": "1027651681319191388",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.0.3.1",
+      "manifestId": "7676745322914956307",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.0.3",
+      "manifestId": "2399164431914827050",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.0.2",
+      "manifestId": "2177833065530362375",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2.0.1",
+      "manifestId": "2884265869663308066",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.2",
+      "manifestId": "117201757688892592",
+      "isAutomaticallyDiscovered": false
+    }
+
+  ]
+}

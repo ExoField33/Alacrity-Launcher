@@ -1,0 +1,427 @@
+using Alacrity.Launcher.Core;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+
+namespace Alacrity.Launcher;
+
+public partial class MainWindow : Window
+{
+    private readonly LauncherViewModel viewModel;
+
+    public MainWindow(LauncherViewModel viewModel)
+    {
+        this.viewModel = viewModel;
+        DataContext = viewModel;
+        InitializeComponent();
+        Loaded += OnLoaded;
+    }
+
+    private async void OnLoaded(object sender, RoutedEventArgs eventArgs)
+    {
+        await RunOperationAsync(viewModel.InitializeAsync);
+    }
+
+    private async void Refresh_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        await RunOperationAsync(viewModel.InitializeAsync);
+    }
+
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        try {
+            LauncherUpdateInfo? update = await viewModel.CheckForUpdatesAsync(CancellationToken.None);
+            if (update is null) {
+                MessageBox.Show("Alacrity Launcher is up to date.", "Alacrity Launcher", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            MessageBoxResult choice = MessageBox.Show(
+                $"Alacrity Launcher {update.Version} is available. Download and install it now?",
+                "Alacrity Launcher",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+            if (choice != MessageBoxResult.Yes) {
+                return;
+            }
+
+            LauncherUpdatePayload payload = await viewModel.DownloadUpdateAsync(update, CancellationToken.None);
+            viewModel.ScheduleUpdateAfterExit(payload);
+            Application.Current.Shutdown();
+        }
+        catch (Exception exception) {
+            ReportException(exception);
+        }
+    }
+
+    private async void Download_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        try {
+            await viewModel.DownloadSelectedAsync(CancellationToken.None);
+        }
+        catch (SteamAccountNameRequiredException exception) {
+            string? accountName = SteamAccountPromptWindow.Show(this, exception.Message);
+            if (string.IsNullOrWhiteSpace(accountName)) {
+                return;
+            }
+
+            await RunOperationAsync(async cancellationToken => {
+                await viewModel.SetSteamAccountNameAsync(accountName, cancellationToken);
+                await viewModel.DownloadSelectedAsync(cancellationToken);
+            });
+        }
+        catch (Exception exception) {
+            ReportException(exception);
+        }
+    }
+
+    private async void Launch_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        bool isolateLegacyProfile = false;
+        if (viewModel.SelectedVersion is { IsLegacy: true }) {
+            bool? selection = LegacyProfilePromptWindow.Show(this);
+            if (!selection.HasValue) {
+                return;
+            }
+
+            isolateLegacyProfile = selection.Value;
+        }
+
+        await RunOperationAsync(cancellationToken => viewModel.LaunchSelectedAsync(isolateLegacyProfile, cancellationToken));
+    }
+
+    private async Task RunOperationAsync(Func<CancellationToken, Task> operation)
+    {
+        try {
+            await operation(CancellationToken.None);
+        }
+        catch (Exception exception) {
+            ReportException(exception);
+        }
+    }
+
+    private void ReportException(Exception exception)
+    {
+        viewModel.Status = exception.Message;
+        MessageBox.Show(exception.Message, "Alacrity Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) {
+            ChangelogSearchPanel.Visibility = Visibility.Visible;
+            ChangelogSearchBox.Focus();
+            ChangelogSearchBox.SelectAll();
+            eventArgs.Handled = true;
+            return;
+        }
+
+        if (eventArgs.Key == Key.Escape && ChangelogSearchPanel.IsKeyboardFocusWithin) {
+            ChangelogSearchBox.Clear();
+            ChangelogSearchPanel.Visibility = Visibility.Collapsed;
+            ChangelogTextBox.Focus();
+            eventArgs.Handled = true;
+        }
+    }
+
+    private void ChangelogSearchBox_TextChanged(object sender, TextChangedEventArgs eventArgs)
+    {
+        FindNextChangelogMatch();
+    }
+
+    private void ChangelogSearchBox_KeyDown(object sender, KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key == Key.Enter) {
+            FindNextChangelogMatch();
+            eventArgs.Handled = true;
+        }
+    }
+
+    private void ChangelogSearchNext_Click(object sender, RoutedEventArgs eventArgs)
+    {
+        FindNextChangelogMatch();
+    }
+
+    private void FindNextChangelogMatch()
+    {
+        string query = ChangelogSearchBox.Text;
+        if (string.IsNullOrWhiteSpace(query)) {
+            return;
+        }
+
+        string changelog = ChangelogTextBox.Text;
+        int searchStart = ChangelogTextBox.SelectionStart + ChangelogTextBox.SelectionLength;
+        int match = changelog.IndexOf(query, searchStart, StringComparison.OrdinalIgnoreCase);
+        if (match < 0 && searchStart > 0) {
+            match = changelog.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (match < 0) {
+            return;
+        }
+
+        ChangelogTextBox.Select(match, query.Length);
+        int line = ChangelogTextBox.GetLineIndexFromCharacterIndex(match);
+        if (line >= 0) {
+            ChangelogTextBox.ScrollToLine(line);
+        }
+    }
+
+    private void ChangelogSearchBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs eventArgs)
+    {
+        Dispatcher.BeginInvoke(() => {
+            if (!ChangelogSearchPanel.IsKeyboardFocusWithin) {
+                ChangelogSearchBox.Clear();
+                ChangelogSearchPanel.Visibility = Visibility.Collapsed;
+            }
+        });
+    }
+
+}
+
+public sealed class LauncherViewModel : INotifyPropertyChanged
+{
+    private readonly LauncherCoordinator coordinator;
+    private readonly LauncherSettingsStore settingsStore;
+    private readonly GitHubReleaseUpdateService updateService;
+    private readonly SemaphoreSlim operationGate = new SemaphoreSlim(1, 1);
+    private LauncherSettings settings = new LauncherSettings();
+    private LauncherVersionView? selectedVersion;
+    private string status = "Starting launcher...";
+    private bool isIdle = true;
+    private string terrariaDirectory = string.Empty;
+
+    public LauncherViewModel(LauncherCoordinator coordinator, LauncherSettingsStore settingsStore, GitHubReleaseUpdateService updateService)
+    {
+        this.coordinator = coordinator;
+        this.settingsStore = settingsStore;
+        this.updateService = updateService;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public ObservableCollection<LauncherVersionView> Versions { get; } = new ObservableCollection<LauncherVersionView>();
+
+    public LauncherVersionView? SelectedVersion
+    {
+        get => selectedVersion;
+        set {
+            if (Set(ref selectedVersion, value)) {
+                RaisePropertyChanged(nameof(SelectedChangelog));
+                RaisePropertyChanged(nameof(ChangelogHeading));
+                RaisePropertyChanged(nameof(CanDownloadSelected));
+                RaisePropertyChanged(nameof(CanLaunchSelected));
+            }
+        }
+    }
+
+    public string SelectedChangelog => SelectedVersion?.Changelog ?? "Select a version to read its changelog. Historical changelogs are taken from the installed current Terraria changelog.txt.";
+
+    public string ChangelogHeading => SelectedVersion is null ? "Changelog" : "Changelog - " + SelectedVersion.Entry.Version;
+
+    public string TerrariaDirectory
+    {
+        get => terrariaDirectory;
+        set => Set(ref terrariaDirectory, value);
+    }
+
+    public string Status
+    {
+        get => status;
+        set => Set(ref status, value);
+    }
+
+    public bool IsIdle
+    {
+        get => isIdle;
+        private set {
+            if (Set(ref isIdle, value)) {
+                RaisePropertyChanged(nameof(CanDownloadSelected));
+                RaisePropertyChanged(nameof(CanLaunchSelected));
+            }
+        }
+    }
+
+    public bool CanDownloadSelected => IsIdle && SelectedVersion is { CanDownload: true, IsInstalled: false };
+
+    public bool CanLaunchSelected => IsIdle && SelectedVersion is { IsInstalled: true };
+
+    public async Task InitializeAsync(CancellationToken cancellationToken)
+    {
+        await ExecuteExclusiveAsync(async () => {
+            Status = "Checking Terraria and available versions...";
+            LauncherStartupState state = await coordinator.InitializeAsync(cancellationToken);
+            settings = state.Settings;
+            TerrariaDirectory = settings.TerrariaDirectory ?? state.TerrariaInstallation?.TerrariaDirectory ?? string.Empty;
+
+            string? previousVersion = SelectedVersion?.Entry.Version;
+            Versions.Clear();
+            foreach (LauncherVersionPresentation version in state.Versions) {
+                Versions.Add(new LauncherVersionView(version));
+            }
+
+            SelectedVersion = Versions.FirstOrDefault(version => string.Equals(version.Entry.Version, previousVersion, StringComparison.OrdinalIgnoreCase))
+                ?? Versions.FirstOrDefault();
+            Status = state.Status;
+        });
+    }
+
+    public async Task DownloadSelectedAsync(CancellationToken cancellationToken)
+    {
+        LauncherVersionView selected = SelectedVersion ?? throw new InvalidOperationException("Select a Terraria version first.");
+        await ExecuteExclusiveAsync(async () => {
+            Status = $"Preparing Terraria {selected.Entry.Version}...";
+            LauncherSettings currentSettings = await SaveSettingsAsync(cancellationToken);
+            await coordinator.DownloadVersionAsync(selected.Entry, currentSettings, cancellationToken);
+            selected.IsInstalled = true;
+            RaisePropertyChanged(nameof(CanDownloadSelected));
+            RaisePropertyChanged(nameof(CanLaunchSelected));
+            Status = $"Terraria {selected.Entry.Version} is ready to launch.";
+        });
+    }
+
+    public async Task LaunchSelectedAsync(bool isolateLegacyProfile, CancellationToken cancellationToken)
+    {
+        LauncherVersionView selected = SelectedVersion ?? throw new InvalidOperationException("Select a Terraria version first.");
+        await ExecuteExclusiveAsync(async () => {
+            if (!selected.IsInstalled) {
+                throw new InvalidOperationException($"Download Terraria {selected.Entry.Version} before launching it.");
+            }
+
+            LauncherSettings currentSettings = await SaveSettingsAsync(cancellationToken);
+            Status = $"Running Terraria {selected.Entry.Version}...";
+            await coordinator.LaunchAsync(selected.Entry, currentSettings, isolateLegacyProfile, cancellationToken);
+            Status = $"Terraria {selected.Entry.Version} closed and the Steam installation was restored.";
+        });
+    }
+
+    public async Task SetSteamAccountNameAsync(string accountName, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(accountName)) {
+            throw new ArgumentException("A Steam account name is required.", nameof(accountName));
+        }
+
+        settings = new LauncherSettings {
+            TerrariaDirectory = string.IsNullOrWhiteSpace(TerrariaDirectory) ? null : TerrariaDirectory.Trim(),
+            SteamAccountName = accountName.Trim()
+        };
+        await settingsStore.SaveAsync(settings, cancellationToken);
+    }
+
+    public async Task<LauncherUpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken)
+    {
+        LauncherUpdateInfo? update = null;
+        await ExecuteExclusiveAsync(async () => {
+            Status = "Checking for launcher updates...";
+            update = await updateService.CheckAsync(GetCurrentLauncherVersion(), cancellationToken);
+            Status = update is null ? "Alacrity Launcher is up to date." : $"Alacrity Launcher {update.Version} is available.";
+        });
+
+        return update;
+    }
+
+    public async Task<LauncherUpdatePayload> DownloadUpdateAsync(LauncherUpdateInfo update, CancellationToken cancellationToken)
+    {
+        LauncherUpdatePayload? payload = null;
+        await ExecuteExclusiveAsync(async () => {
+            Status = $"Downloading launcher update {update.Version}...";
+            payload = await updateService.DownloadAsync(update, cancellationToken);
+            Status = "Restarting to install the launcher update...";
+        });
+
+        return payload ?? throw new InvalidOperationException("The launcher update did not produce an installable payload.");
+    }
+
+    public void ScheduleUpdateAfterExit(LauncherUpdatePayload payload)
+    {
+        updateService.ScheduleApplyAfterExit(payload, AppContext.BaseDirectory, Environment.ProcessId);
+    }
+
+    private async Task<LauncherSettings> SaveSettingsAsync(CancellationToken cancellationToken)
+    {
+        settings = new LauncherSettings {
+            TerrariaDirectory = string.IsNullOrWhiteSpace(TerrariaDirectory) ? null : TerrariaDirectory.Trim(),
+            SteamAccountName = settings.SteamAccountName
+        };
+        await settingsStore.SaveAsync(settings, cancellationToken);
+        return settings;
+    }
+
+    private static Version GetCurrentLauncherVersion()
+    {
+        return typeof(LauncherViewModel).Assembly.GetName().Version ?? new Version(0, 0);
+    }
+
+    private async Task ExecuteExclusiveAsync(Func<Task> operation)
+    {
+        await operationGate.WaitAsync();
+        IsIdle = false;
+        try {
+            await operation();
+        }
+        finally {
+            IsIdle = true;
+            operationGate.Release();
+        }
+    }
+
+    private bool Set<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) {
+            return false;
+        }
+
+        field = value;
+        RaisePropertyChanged(propertyName);
+        return true;
+    }
+
+    private void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+public sealed class LauncherVersionView : INotifyPropertyChanged
+{
+    private bool isInstalled;
+    private readonly bool canPrepare;
+
+    public LauncherVersionView(LauncherVersionPresentation presentation)
+    {
+        Entry = presentation.Entry;
+        isInstalled = presentation.IsInstalled;
+        canPrepare = presentation.CanPrepare;
+        Changelog = presentation.Changelog;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public TerrariaVersionEntry Entry { get; }
+
+    public string? Changelog { get; }
+
+    public bool IsInstalled
+    {
+        get => isInstalled;
+        set {
+            if (isInstalled == value) {
+                return;
+            }
+
+            isInstalled = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsInstalled)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayName)));
+        }
+    }
+
+    public bool CanDownload => canPrepare;
+
+    public bool IsLegacy => LauncherCoordinator.IsLegacyVersion(Entry.Version);
+
+    public string DisplayName => Entry.Version;
+
+}

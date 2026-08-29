@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Alacrity.Launcher.Core/Alacrity.Launcher.Core.csproj" />
+    <Project Path="src/Alacrity.Launcher/Alacrity.Launcher.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Alacrity.Launcher.Core.Tests/Alacrity.Launcher.Core.Tests.csproj" />
+  </Folder>
+</Solution>
