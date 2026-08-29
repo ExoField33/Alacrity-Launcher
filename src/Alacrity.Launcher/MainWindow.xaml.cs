@@ -30,33 +30,6 @@ public partial class MainWindow : Window
         await RunOperationAsync(viewModel.InitializeAsync);
     }
 
-    private async void CheckForUpdates_Click(object sender, RoutedEventArgs eventArgs)
-    {
-        try {
-            LauncherUpdateInfo? update = await viewModel.CheckForUpdatesAsync(CancellationToken.None);
-            if (update is null) {
-                MessageBox.Show("Alacrity Launcher is up to date.", "Alacrity Launcher", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            MessageBoxResult choice = MessageBox.Show(
-                $"Alacrity Launcher {update.Version} is available. Download and install it now?",
-                "Alacrity Launcher",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Information);
-            if (choice != MessageBoxResult.Yes) {
-                return;
-            }
-
-            LauncherUpdatePayload payload = await viewModel.DownloadUpdateAsync(update, CancellationToken.None);
-            viewModel.ScheduleUpdateAfterExit(payload);
-            Application.Current.Shutdown();
-        }
-        catch (Exception exception) {
-            ReportException(exception);
-        }
-    }
-
     private async void Download_Click(object sender, RoutedEventArgs eventArgs)
     {
         try {
@@ -186,7 +159,6 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
 {
     private readonly LauncherCoordinator coordinator;
     private readonly LauncherSettingsStore settingsStore;
-    private readonly GitHubReleaseUpdateService updateService;
     private readonly SemaphoreSlim operationGate = new SemaphoreSlim(1, 1);
     private LauncherSettings settings = new LauncherSettings();
     private LauncherVersionView? selectedVersion;
@@ -194,11 +166,10 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
     private bool isIdle = true;
     private string terrariaDirectory = string.Empty;
 
-    public LauncherViewModel(LauncherCoordinator coordinator, LauncherSettingsStore settingsStore, GitHubReleaseUpdateService updateService)
+    public LauncherViewModel(LauncherCoordinator coordinator, LauncherSettingsStore settingsStore)
     {
         this.coordinator = coordinator;
         this.settingsStore = settingsStore;
-        this.updateService = updateService;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -311,35 +282,6 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
         await settingsStore.SaveAsync(settings, cancellationToken);
     }
 
-    public async Task<LauncherUpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken)
-    {
-        LauncherUpdateInfo? update = null;
-        await ExecuteExclusiveAsync(async () => {
-            Status = "Checking for launcher updates...";
-            update = await updateService.CheckAsync(GetCurrentLauncherVersion(), cancellationToken);
-            Status = update is null ? "Alacrity Launcher is up to date." : $"Alacrity Launcher {update.Version} is available.";
-        });
-
-        return update;
-    }
-
-    public async Task<LauncherUpdatePayload> DownloadUpdateAsync(LauncherUpdateInfo update, CancellationToken cancellationToken)
-    {
-        LauncherUpdatePayload? payload = null;
-        await ExecuteExclusiveAsync(async () => {
-            Status = $"Downloading launcher update {update.Version}...";
-            payload = await updateService.DownloadAsync(update, cancellationToken);
-            Status = "Restarting to install the launcher update...";
-        });
-
-        return payload ?? throw new InvalidOperationException("The launcher update did not produce an installable payload.");
-    }
-
-    public void ScheduleUpdateAfterExit(LauncherUpdatePayload payload)
-    {
-        updateService.ScheduleApplyAfterExit(payload, AppContext.BaseDirectory, Environment.ProcessId);
-    }
-
     private async Task<LauncherSettings> SaveSettingsAsync(CancellationToken cancellationToken)
     {
         settings = new LauncherSettings {
@@ -348,11 +290,6 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
         };
         await settingsStore.SaveAsync(settings, cancellationToken);
         return settings;
-    }
-
-    private static Version GetCurrentLauncherVersion()
-    {
-        return typeof(LauncherViewModel).Assembly.GetName().Version ?? new Version(0, 0);
     }
 
     private async Task ExecuteExclusiveAsync(Func<Task> operation)

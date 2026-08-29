@@ -41,8 +41,7 @@ public partial class App : Application
 
             var window = new MainWindow(new LauncherViewModel(
                 coordinator,
-                new LauncherSettingsStore(paths),
-                new GitHubReleaseUpdateService(httpClient)));
+                new LauncherSettingsStore(paths)));
             MainWindow = window;
             window.Show();
         }

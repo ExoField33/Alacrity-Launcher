@@ -86,13 +86,6 @@
       </Border>
     </Grid>
 
-    <Grid Grid.Row="8">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
-      <TextBlock Grid.Column="0" Text="{Binding Status}" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-      <Button Grid.Column="1" Content="Check for updates" Click="CheckForUpdates_Click" IsEnabled="{Binding IsIdle}" Margin="8,0,0,0" Padding="9,4" />
-    </Grid>
+    <TextBlock Grid.Row="8" Text="{Binding Status}" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
   </Grid>
 </Window>
