@@ -48,7 +48,9 @@ public sealed class TerrariaLaunchService
             TerrariaDirectory = request.TerrariaInstallation.TerrariaDirectory,
             BackupTerrariaDirectory = backupDirectory,
             VersionDirectory = request.VersionDirectory,
-            LegacyProfileSwap = request.IsolateLegacyProfile ? legacyProfiles.CreateState(request.CurrentVersion, request.Version) : null
+            LegacyProfileSwap = ShouldSwapVersionSettings(request)
+                ? legacyProfiles.CreateState(request.CurrentVersion, request.Version, request.IsolateLegacyProfile)
+                : null
         };
 
         journal.Write(state);
@@ -276,6 +278,11 @@ public sealed class TerrariaLaunchService
         if (!TerrariaVersionNumber.TryParse(request.CurrentVersion, out _)) {
             throw new ArgumentException("The current Terraria version is invalid.", nameof(request));
         }
+    }
+
+    private static bool ShouldSwapVersionSettings(TerrariaLaunchRequest request)
+    {
+        return !string.Equals(request.CurrentVersion, request.Version, StringComparison.OrdinalIgnoreCase);
     }
 }
 

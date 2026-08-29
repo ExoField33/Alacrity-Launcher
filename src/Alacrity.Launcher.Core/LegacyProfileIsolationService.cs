@@ -2,36 +2,50 @@ namespace Alacrity.Launcher.Core;
 
 public sealed class LegacyProfileIsolationService
 {
+    private static readonly string[] VersionSettingsFileNames = {
+        "config.json",
+        "favorites.json",
+        "input profiles.json"
+    };
+
     private static readonly string[] DirectoryNames = { "Players", "Worlds" };
     // config.dat belongs to older Terraria releases. Leaving it at the shared
     // root lets a newer release import its incompatible settings on next launch.
-    private static readonly string[] FileNames = {
+    private static readonly string[] LegacyFileNames = {
         "achievements.dat",
         "config.dat",
-        "config.json",
-        "favorites.json",
-        "input profiles.json",
         "servers.dat"
     };
 
     public LegacyProfileSwapState CreateState(string currentVersion, string legacyVersion, string? terrariaDocumentsDirectory = null)
     {
+        return CreateState(currentVersion, legacyVersion, includeLegacyProfileData: true, terrariaDocumentsDirectory: terrariaDocumentsDirectory);
+    }
+
+    public LegacyProfileSwapState CreateState(string currentVersion, string targetVersion, bool includeLegacyProfileData, string? terrariaDocumentsDirectory = null)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(currentVersion);
-        ArgumentException.ThrowIfNullOrWhiteSpace(legacyVersion);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetVersion);
 
         string documentsDirectory = terrariaDocumentsDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Terraria");
         var state = new LegacyProfileSwapState {
             CurrentVersion = currentVersion,
-            LegacyVersion = legacyVersion,
+            LegacyVersion = targetVersion,
             TerrariaDocumentsDirectory = documentsDirectory
         };
 
-        foreach (string directoryName in DirectoryNames) {
-            AddPath(state, directoryName);
+        foreach (string fileName in VersionSettingsFileNames) {
+            AddPath(state, fileName);
         }
 
-        foreach (string fileName in FileNames) {
-            AddPath(state, fileName);
+        if (includeLegacyProfileData) {
+            foreach (string directoryName in DirectoryNames) {
+                AddPath(state, directoryName);
+            }
+
+            foreach (string fileName in LegacyFileNames) {
+                AddPath(state, fileName);
+            }
         }
 
         return state;

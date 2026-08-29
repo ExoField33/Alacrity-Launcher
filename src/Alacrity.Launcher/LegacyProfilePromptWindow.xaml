@@ -14,7 +14,7 @@
       <RowDefinition Height="16" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
-    <TextBlock Text="Launch with current player, world and config files?"
+    <TextBlock Text="Launch with current player and world files?"
                FontSize="16"
                FontWeight="SemiBold"
                TextWrapping="Wrap" />

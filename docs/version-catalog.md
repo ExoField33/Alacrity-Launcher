@@ -17,4 +17,6 @@ Historical depot downloads use DepotDownloader because Steam requires authentica
 
 DepotDownloader remains a separate GPL-2.0 tool. Its upstream source and license are identified in `THIRD-PARTY-NOTICES.txt`, which is included with launcher releases.
 
-For Terraria 1.3.5.3 and older, choosing the recommended isolated profile option temporarily renames only `Players`, `Worlds`, `achievements.dat`, `config.dat`, `config.json`, `favorites.json`, `input profiles.json`, and `servers.dat` in `Documents/My Games/Terraria`. A journal records the operation so the next launcher start can restore an interrupted swap.
+When launching a version different from the installed Steam version, the launcher always isolates `config.json`, `favorites.json`, and `input profiles.json` in `Documents/My Games/Terraria`. This keeps language, resolution, input bindings, and favorites version-specific without affecting player or world data.
+
+For Terraria 1.3.5.3 and older, choosing the recommended isolated profile option additionally isolates `Players`, `Worlds`, `achievements.dat`, `config.dat`, and `servers.dat`. A journal records every swap so the next launcher start can restore an interrupted launch.

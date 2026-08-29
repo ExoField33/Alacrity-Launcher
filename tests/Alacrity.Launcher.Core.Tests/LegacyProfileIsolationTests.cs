@@ -97,6 +97,51 @@ public sealed class LegacyProfileIsolationTests
     }
 
     [Fact]
+    public void ModernVersionsSwapSettingsWithoutSwappingPlayerOrWorldData()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "alacrity-launcher-tests", Guid.NewGuid().ToString("N"));
+        try {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "Players"));
+            Directory.CreateDirectory(Path.Combine(root, "Worlds"));
+            File.WriteAllText(Path.Combine(root, "Players", "current.plr"), "current-player");
+            File.WriteAllText(Path.Combine(root, "Worlds", "current.wld"), "current-world");
+            File.WriteAllText(Path.Combine(root, "config.json"), "current-config");
+            File.WriteAllText(Path.Combine(root, "favorites.json"), "current-favorites");
+            File.WriteAllText(Path.Combine(root, "input profiles.json"), "current-input-profiles");
+            File.WriteAllText(Path.Combine(root, "config.json 1.4.5.6"), "target-config");
+            File.WriteAllText(Path.Combine(root, "favorites.json 1.4.5.6"), "target-favorites");
+            File.WriteAllText(Path.Combine(root, "input profiles.json 1.4.5.6"), "target-input-profiles");
+
+            var service = new LegacyProfileIsolationService();
+            LegacyProfileSwapState state = service.CreateState("1.4.5.8", "1.4.5.6", includeLegacyProfileData: false, terrariaDocumentsDirectory: root);
+
+            service.Activate(state);
+
+            Assert.True(File.Exists(Path.Combine(root, "Players", "current.plr")));
+            Assert.True(File.Exists(Path.Combine(root, "Worlds", "current.wld")));
+            Assert.Equal("target-config", File.ReadAllText(Path.Combine(root, "config.json")));
+            Assert.Equal("target-favorites", File.ReadAllText(Path.Combine(root, "favorites.json")));
+            Assert.Equal("target-input-profiles", File.ReadAllText(Path.Combine(root, "input profiles.json")));
+
+            File.WriteAllText(Path.Combine(root, "config.json"), "updated-target-config");
+            service.Restore(state);
+
+            Assert.Equal("current-config", File.ReadAllText(Path.Combine(root, "config.json")));
+            Assert.Equal("current-favorites", File.ReadAllText(Path.Combine(root, "favorites.json")));
+            Assert.Equal("current-input-profiles", File.ReadAllText(Path.Combine(root, "input profiles.json")));
+            Assert.Equal("updated-target-config", File.ReadAllText(Path.Combine(root, "config.json 1.4.5.6")));
+            Assert.True(File.Exists(Path.Combine(root, "Players", "current.plr")));
+            Assert.True(File.Exists(Path.Combine(root, "Worlds", "current.wld")));
+        }
+        finally {
+            if (Directory.Exists(root)) {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void RestoringPartiallyActivatedProfileKeepsCurrentFiles()
     {
         string root = Path.Combine(Path.GetTempPath(), "alacrity-launcher-tests", Guid.NewGuid().ToString("N"));
