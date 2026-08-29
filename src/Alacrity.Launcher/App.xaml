@@ -93,14 +93,17 @@
               <Popup x:Name="DropDownPopup"
                      AllowsTransparency="True"
                      IsOpen="{TemplateBinding IsDropDownOpen}"
-                     Placement="Bottom"
-                     PopupAnimation="Slide">
+                     Placement="Bottom">
                 <Border Background="#EDE2D2"
                         BorderBrush="#BCA98D"
                         BorderThickness="1"
                         MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
                   <ScrollViewer CanContentScroll="True"
-                                MaxHeight="280">
+                                PanningMode="None"
+                                IsManipulationEnabled="False"
+                                MaxHeight="280"
+                                VerticalScrollBarVisibility="Auto"
+                                HorizontalScrollBarVisibility="Disabled">
                     <ItemsPresenter />
                   </ScrollViewer>
                 </Border>
@@ -124,14 +127,15 @@
     <Style TargetType="ComboBoxItem">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="#332A22" />
-      <Setter Property="Padding" Value="9,5" />
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Padding" Value="9,0" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ComboBoxItem">
             <Border x:Name="ItemBorder"
                     Background="{TemplateBinding Background}"
                     Padding="{TemplateBinding Padding}">
-              <ContentPresenter />
+              <ContentPresenter VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsHighlighted" Value="True">
