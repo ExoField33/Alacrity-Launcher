@@ -12,9 +12,9 @@ public sealed class LauncherCoordinator
     private readonly LatestTerrariaVersionDiscovery latestVersionDiscovery;
     private readonly SteamManifestReader manifestReader;
     private readonly TerrariaVersionInstaller versionInstaller;
-    private readonly SteamCmdProvisioner steamCmdProvisioner;
+    private readonly DepotDownloaderProvisioner depotDownloaderProvisioner;
     private readonly SteamAccountNameLocator steamAccountNameLocator;
-    private readonly SteamCmdDepotDownloader depotDownloader;
+    private readonly DepotDownloaderManifestDownloader depotDownloader;
     private readonly SteamClientLauncher steamClientLauncher;
     private readonly TerrariaLaunchService launchService;
 
@@ -27,9 +27,9 @@ public sealed class LauncherCoordinator
         LatestTerrariaVersionDiscovery latestVersionDiscovery,
         SteamManifestReader manifestReader,
         TerrariaVersionInstaller versionInstaller,
-        SteamCmdProvisioner steamCmdProvisioner,
+        DepotDownloaderProvisioner depotDownloaderProvisioner,
         SteamAccountNameLocator steamAccountNameLocator,
-        SteamCmdDepotDownloader depotDownloader,
+        DepotDownloaderManifestDownloader depotDownloader,
         SteamClientLauncher steamClientLauncher,
         TerrariaLaunchService launchService)
     {
@@ -41,7 +41,7 @@ public sealed class LauncherCoordinator
         this.latestVersionDiscovery = latestVersionDiscovery;
         this.manifestReader = manifestReader;
         this.versionInstaller = versionInstaller;
-        this.steamCmdProvisioner = steamCmdProvisioner;
+        this.depotDownloaderProvisioner = depotDownloaderProvisioner;
         this.steamAccountNameLocator = steamAccountNameLocator;
         this.depotDownloader = depotDownloader;
         this.steamClientLauncher = steamClientLauncher;
@@ -113,15 +113,23 @@ public sealed class LauncherCoordinator
             throw new SteamAccountNameRequiredException();
         }
 
-        string steamCmdPath = await steamCmdProvisioner.EnsureAvailableAsync(cancellationToken).ConfigureAwait(false);
-        string downloadedDirectory = await depotDownloader.DownloadAsync(new DepotDownloadRequest {
-            Version = entry.Version,
-            ManifestId = entry.ManifestId!,
-            SteamCmdPath = steamCmdPath,
-            SteamAccountName = steamAccountName
-        }, cancellationToken).ConfigureAwait(false);
+        string depotDownloaderPath = await depotDownloaderProvisioner.EnsureAvailableAsync(cancellationToken).ConfigureAwait(false);
+        string stagingDirectory = destinationDirectory + ".staging-" + Guid.NewGuid().ToString("N");
+        try {
+            string downloadedDirectory = await depotDownloader.DownloadAsync(new DepotDownloadRequest {
+                Version = entry.Version,
+                ManifestId = entry.ManifestId!,
+                DepotDownloaderPath = depotDownloaderPath,
+                OutputDirectory = stagingDirectory,
+                SteamAccountName = steamAccountName
+            }, cancellationToken).ConfigureAwait(false);
 
-        versionInstaller.FinalizeStagedVersion(downloadedDirectory, destinationDirectory, entry.Version, "steamcmd-depot");
+            versionInstaller.FinalizeStagedVersion(downloadedDirectory, destinationDirectory, entry.Version, "depotdownloader-depot");
+        }
+        catch {
+            TryDeleteDirectory(stagingDirectory);
+            throw;
+        }
     }
 
     public async Task LaunchAsync(TerrariaVersionEntry entry, LauncherSettings settings, bool isolateLegacyProfile, CancellationToken cancellationToken)
@@ -184,6 +192,17 @@ public sealed class LauncherCoordinator
     {
         string changelogPath = Path.Combine(terrariaDirectory, "changelog.txt");
         return File.Exists(changelogPath) ? changelogReader.Read(changelogPath) : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void TryDeleteDirectory(string directory)
+    {
+        try {
+            if (Directory.Exists(directory)) {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+        catch (Exception) {
+        }
     }
 }
 

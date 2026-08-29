@@ -3,14 +3,14 @@ using System.Net.Http;
 
 namespace Alacrity.Launcher.Core;
 
-public sealed class SteamCmdProvisioner
+public sealed class DepotDownloaderProvisioner
 {
-    private static readonly Uri SteamCmdArchiveUri = new Uri("https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip");
+    private static readonly Uri ArchiveUri = new Uri("https://github.com/SteamRE/DepotDownloader/releases/download/DepotDownloader_3.4.0/DepotDownloader-windows-x64.zip");
 
     private readonly LauncherPaths paths;
     private readonly HttpClient httpClient;
 
-    public SteamCmdProvisioner(LauncherPaths paths, HttpClient httpClient)
+    public DepotDownloaderProvisioner(LauncherPaths paths, HttpClient httpClient)
     {
         this.paths = paths;
         this.httpClient = httpClient;
@@ -19,28 +19,29 @@ public sealed class SteamCmdProvisioner
     public async Task<string> EnsureAvailableAsync(CancellationToken cancellationToken)
     {
         paths.EnsureDirectories();
-        string executablePath = Path.Combine(paths.SteamCmdDirectory, "steamcmd.exe");
+        string executablePath = Path.Combine(paths.DepotDownloaderDirectory, "DepotDownloader.exe");
         if (File.Exists(executablePath)) {
             return executablePath;
         }
 
-        string stagingDirectory = paths.SteamCmdDirectory + ".staging-" + Guid.NewGuid().ToString("N");
+        string stagingDirectory = paths.DepotDownloaderDirectory + ".staging-" + Guid.NewGuid().ToString("N");
         string archivePath = stagingDirectory + ".zip";
         Directory.CreateDirectory(stagingDirectory);
 
         try {
             await DownloadArchiveAsync(archivePath, cancellationToken).ConfigureAwait(false);
             ZipFile.ExtractToDirectory(archivePath, stagingDirectory);
-            string stagedExecutablePath = Path.Combine(stagingDirectory, "steamcmd.exe");
+            string stagedExecutablePath = Path.Combine(stagingDirectory, "DepotDownloader.exe");
             if (!File.Exists(stagedExecutablePath)) {
-                throw new InvalidDataException("The SteamCMD download did not contain steamcmd.exe.");
+                throw new InvalidDataException("The official DepotDownloader archive did not contain DepotDownloader.exe.");
             }
 
-            if (Directory.Exists(paths.SteamCmdDirectory)) {
-                Directory.Delete(paths.SteamCmdDirectory, recursive: true);
+            if (Directory.Exists(paths.DepotDownloaderDirectory)) {
+                Directory.Delete(paths.DepotDownloaderDirectory, recursive: true);
             }
 
-            Directory.Move(stagingDirectory, paths.SteamCmdDirectory);
+            Directory.Move(stagingDirectory, paths.DepotDownloaderDirectory);
+            TryDeleteLegacySteamCmdDirectory();
             return executablePath;
         }
         finally {
@@ -56,12 +57,24 @@ public sealed class SteamCmdProvisioner
 
     private async Task DownloadArchiveAsync(string archivePath, CancellationToken cancellationToken)
     {
-        using HttpResponseMessage response = await httpClient.GetAsync(SteamCmdArchiveUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await httpClient.GetAsync(ArchiveUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         await using Stream source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         await using var destination = new FileStream(archivePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
         await source.CopyToAsync(destination, 65536, cancellationToken).ConfigureAwait(false);
         await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private void TryDeleteLegacySteamCmdDirectory()
+    {
+        try {
+            if (Directory.Exists(paths.LegacySteamCmdDirectory)) {
+                Directory.Delete(paths.LegacySteamCmdDirectory, recursive: true);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) {
+            // An active legacy download may still hold this cache; the next successful provision retries cleanup.
+        }
     }
 }

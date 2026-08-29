@@ -19,7 +19,9 @@ public sealed class LauncherPaths
 
     public string ToolsDirectory => Path.Combine(RootDirectory, "Tools");
 
-    public string SteamCmdDirectory => Path.Combine(ToolsDirectory, "SteamCMD");
+    public string DepotDownloaderDirectory => Path.Combine(ToolsDirectory, "DepotDownloader");
+
+    public string LegacySteamCmdDirectory => Path.Combine(ToolsDirectory, "SteamCMD");
 
     public string VersionCatalogPath => Path.Combine(DataDirectory, "versions.json");
 

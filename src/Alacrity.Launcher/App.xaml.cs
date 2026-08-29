@@ -33,9 +33,9 @@ public partial class App : Application
                 new LatestTerrariaVersionDiscovery(httpClient),
                 new SteamManifestReader(),
                 new TerrariaVersionInstaller(paths, changelogReader),
-                new SteamCmdProvisioner(paths, httpClient),
+                new DepotDownloaderProvisioner(paths, httpClient),
                 new SteamAccountNameLocator(),
-                new SteamCmdDepotDownloader(),
+                new DepotDownloaderManifestDownloader(),
                 new SteamClientLauncher(),
                 new TerrariaLaunchService(journal, new DirectoryJunctionService(), new LegacyProfileIsolationService()));
 

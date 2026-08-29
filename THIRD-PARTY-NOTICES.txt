@@ -1,0 +1,7 @@
+Alacrity Launcher downloads DepotDownloader as a separate tool when an archived Terraria depot is requested.
+
+DepotDownloader
+Source: https://github.com/SteamRE/DepotDownloader
+License: GNU General Public License, version 2.0
+
+DepotDownloader is provided by its upstream project and is not linked into Alacrity Launcher. Its source code and license are available from the source URL above.

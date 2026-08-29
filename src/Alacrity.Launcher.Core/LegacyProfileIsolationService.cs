@@ -3,7 +3,7 @@ namespace Alacrity.Launcher.Core;
 public sealed class LegacyProfileIsolationService
 {
     private static readonly string[] DirectoryNames = { "Players", "Worlds" };
-    private static readonly string[] FileNames = { "achievements.dat", "config.json", "favorites.json" };
+    private static readonly string[] FileNames = { "achievements.dat", "config.json", "favorites.json", "input profiles.json" };
 
     public LegacyProfileSwapState CreateState(string currentVersion, string legacyVersion, string? terrariaDocumentsDirectory = null)
     {
@@ -28,7 +28,7 @@ public sealed class LegacyProfileIsolationService
         return state;
     }
 
-    public void Activate(LegacyProfileSwapState state)
+    public void Activate(LegacyProfileSwapState state, Action? checkpoint = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         if (state.IsActivated) {
@@ -36,41 +36,77 @@ public sealed class LegacyProfileIsolationService
         }
 
         Directory.CreateDirectory(state.TerrariaDocumentsDirectory);
-
-        state.IsActivated = true;
+        state.IsActivationInProgress = true;
+        checkpoint?.Invoke();
 
         foreach (LegacyProfilePathState path in state.Paths) {
-            EnsureNoInterruptedPathConflict(path);
+            if (!path.IsActivationStarted) {
+                path.CurrentProfileExistedAtActivation = PathExists(path.DefaultPath);
+                path.IsActivationStarted = true;
+                checkpoint?.Invoke();
+            }
 
-            if (PathExists(path.DefaultPath)) {
+            if (path.CurrentProfileExistedAtActivation
+                && !PathExists(path.CurrentVersionPath)
+                && PathExists(path.DefaultPath)) {
                 Move(path.DefaultPath, path.CurrentVersionPath);
+                checkpoint?.Invoke();
             }
 
-            if (PathExists(path.LegacyVersionPath)) {
+            if (!path.LegacyProfileMovedToDefault && PathExists(path.LegacyVersionPath)) {
+                if (PathExists(path.DefaultPath)) {
+                    throw new IOException($"'{path.DefaultPath}' already exists while activating the legacy Terraria profile.");
+                }
+
                 Move(path.LegacyVersionPath, path.DefaultPath);
+                checkpoint?.Invoke();
             }
+
+            path.LegacyProfileMovedToDefault = true;
+            checkpoint?.Invoke();
         }
 
+        state.IsActivated = true;
+        state.IsActivationInProgress = false;
+        checkpoint?.Invoke();
     }
 
-    public void Restore(LegacyProfileSwapState state)
+    public void Restore(LegacyProfileSwapState state, Action? checkpoint = null)
     {
         ArgumentNullException.ThrowIfNull(state);
-        if (!state.IsActivated) {
+        if (!state.IsActivated && !state.IsActivationInProgress) {
             return;
         }
 
         foreach (LegacyProfilePathState path in state.Paths) {
-            if (PathExists(path.CurrentVersionPath)) {
+            if (!path.IsActivationStarted) {
+                continue;
+            }
+
+            if (path.CurrentProfileExistedAtActivation && PathExists(path.CurrentVersionPath)) {
                 if (PathExists(path.DefaultPath) && !PathExists(path.LegacyVersionPath)) {
                     Move(path.DefaultPath, path.LegacyVersionPath);
+                    checkpoint?.Invoke();
+                }
+
+                if (PathExists(path.DefaultPath)) {
+                    throw new IOException($"'{path.DefaultPath}' could not be restored because the versioned legacy profile still occupies that path.");
                 }
 
                 Move(path.CurrentVersionPath, path.DefaultPath);
+                checkpoint?.Invoke();
+            }
+            else if (!path.CurrentProfileExistedAtActivation
+                && PathExists(path.DefaultPath)
+                && !PathExists(path.LegacyVersionPath)) {
+                Move(path.DefaultPath, path.LegacyVersionPath);
+                checkpoint?.Invoke();
             }
         }
 
         state.IsActivated = false;
+        state.IsActivationInProgress = false;
+        checkpoint?.Invoke();
     }
 
     private static void AddPath(LegacyProfileSwapState state, string fileName)
@@ -81,13 +117,6 @@ public sealed class LegacyProfileIsolationService
             CurrentVersionPath = defaultPath + " " + state.CurrentVersion,
             LegacyVersionPath = defaultPath + " " + state.LegacyVersion
         });
-    }
-
-    private static void EnsureNoInterruptedPathConflict(LegacyProfilePathState path)
-    {
-        if (PathExists(path.CurrentVersionPath)) {
-            throw new IOException($"'{path.CurrentVersionPath}' already exists. Run launcher recovery before starting another legacy Terraria version.");
-        }
     }
 
     private static bool PathExists(string path)

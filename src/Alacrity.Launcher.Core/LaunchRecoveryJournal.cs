@@ -77,6 +77,8 @@ public sealed class LegacyProfileSwapState
 
     public bool IsActivated { get; set; }
 
+    public bool IsActivationInProgress { get; set; }
+
     public List<LegacyProfilePathState> Paths { get; init; } = new List<LegacyProfilePathState>();
 }
 
@@ -87,5 +89,11 @@ public sealed class LegacyProfilePathState
     public required string CurrentVersionPath { get; init; }
 
     public required string LegacyVersionPath { get; init; }
+
+    public bool IsActivationStarted { get; set; }
+
+    public bool CurrentProfileExistedAtActivation { get; set; }
+
+    public bool LegacyProfileMovedToDefault { get; set; }
 
 }

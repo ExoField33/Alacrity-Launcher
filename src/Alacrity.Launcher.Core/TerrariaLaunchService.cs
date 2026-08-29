@@ -54,10 +54,7 @@ public sealed class TerrariaLaunchService
         journal.Write(state);
         try {
             if (state.LegacyProfileSwap is not null) {
-                state.LegacyProfileSwap.IsActivated = true;
-                journal.Write(state);
-                legacyProfiles.Activate(state.LegacyProfileSwap);
-                journal.Write(state);
+                legacyProfiles.Activate(state.LegacyProfileSwap, () => journal.Write(state));
             }
 
             Directory.Move(state.TerrariaDirectory, state.BackupTerrariaDirectory);
@@ -108,8 +105,10 @@ public sealed class TerrariaLaunchService
         }
 
         if (state.LegacyProfileSwap is { IsActivated: true } profileSwap) {
-            legacyProfiles.Restore(profileSwap);
-            journal.Write(state);
+            legacyProfiles.Restore(profileSwap, () => journal.Write(state));
+        }
+        else if (state.LegacyProfileSwap is { IsActivationInProgress: true } interruptedProfileSwap) {
+            legacyProfiles.Restore(interruptedProfileSwap, () => journal.Write(state));
         }
 
         journal.Delete();
