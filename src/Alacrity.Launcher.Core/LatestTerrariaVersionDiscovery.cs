@@ -29,25 +29,49 @@ public sealed class LatestTerrariaVersionDiscovery
             return null;
         }
 
-        foreach (string name in names) {
-            if (TryParseServerArchive(name, out string version)) {
-                return new LatestTerrariaVersion(version, name);
+        return SelectLatest(names);
+    }
+
+    internal static LatestTerrariaVersion? SelectLatest(IEnumerable<string> archiveNames)
+    {
+        ArgumentNullException.ThrowIfNull(archiveNames);
+
+        LatestTerrariaVersion? latest = null;
+        TerrariaVersionNumber latestVersion = default;
+        foreach (string archiveName in archiveNames) {
+            if (string.IsNullOrWhiteSpace(archiveName)
+                || !TryParseServerArchive(archiveName, out string version)
+                || !TerrariaVersionNumber.TryParse(version, out TerrariaVersionNumber parsed)) {
+                continue;
+            }
+
+            if (latest is null || parsed.CompareTo(latestVersion) > 0) {
+                latest = new LatestTerrariaVersion(version, archiveName);
+                latestVersion = parsed;
             }
         }
 
-        return null;
+        return latest;
     }
 
     public static bool TryParseServerArchive(string archiveName, out string version)
     {
         version = string.Empty;
+        if (string.IsNullOrWhiteSpace(archiveName)) {
+            return false;
+        }
+
         Match match = ArchivePattern.Match(archiveName);
         if (!match.Success) {
             return false;
         }
 
         string digits = match.Groups["digits"].Value;
-        if (digits.Length < 3 || digits[0] != '1') {
+        // Terraria currently publishes an unseparated 1.<minor>.<patch>[.<build>]
+        // form. The first three components are single digits; only the optional
+        // build suffix may contain two digits. Longer compact forms are ambiguous
+        // without separators, so discovery deliberately ignores them.
+        if (digits.Length < 3 || digits.Length > 5 || digits[0] != '1') {
             return false;
         }
 

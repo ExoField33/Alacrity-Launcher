@@ -62,7 +62,15 @@ public sealed class LaunchRecoveryState
 
     public bool JunctionCreated { get; set; }
 
+    public bool UsesSteamDirectoryJunction { get; set; }
+
+    public bool TerrariaLaunchInProgress { get; set; }
+
+    public DateTime? TerrariaLaunchStartedUtc { get; set; }
+
     public int? TerrariaProcessId { get; set; }
+
+    public DateTime? TerrariaProcessStartedUtc { get; set; }
 
     public LegacyProfileSwapState? LegacyProfileSwap { get; set; }
 }

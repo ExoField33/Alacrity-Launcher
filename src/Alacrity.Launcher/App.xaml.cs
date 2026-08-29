@@ -7,17 +7,29 @@ namespace Alacrity.Launcher;
 
 public partial class App : Application
 {
+    private const string SingleInstanceMutexName = @"Local\ExoField33.AlacrityLauncher";
+
     private readonly HttpClient httpClient = new HttpClient {
         Timeout = TimeSpan.FromSeconds(12)
     };
+    private Mutex? singleInstanceMutex;
 
     public App()
     {
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Alacrity-Launcher/0.1.0");
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Alacrity-Launcher/0.1.1");
     }
 
     protected override void OnStartup(StartupEventArgs arguments)
     {
+        singleInstanceMutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out bool createdNew);
+        if (!createdNew) {
+            singleInstanceMutex.Dispose();
+            singleInstanceMutex = null;
+            MessageBox.Show("Alacrity Launcher is already running.", "Alacrity Launcher", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown(0);
+            return;
+        }
+
         base.OnStartup(arguments);
         try {
             string rootDirectory = AppContext.BaseDirectory;
@@ -55,6 +67,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs eventArgs)
     {
         httpClient.Dispose();
+        singleInstanceMutex?.Dispose();
         base.OnExit(eventArgs);
     }
 }

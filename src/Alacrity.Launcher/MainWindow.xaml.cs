@@ -11,6 +11,7 @@ namespace Alacrity.Launcher;
 public partial class MainWindow : Window
 {
     private readonly LauncherViewModel viewModel;
+    private readonly ChangelogSearchSession changelogSearch = new ChangelogSearchSession();
 
     public MainWindow(LauncherViewModel viewModel)
     {
@@ -92,65 +93,62 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (eventArgs.Key == Key.Escape && ChangelogSearchPanel.IsKeyboardFocusWithin) {
-            ChangelogSearchBox.Clear();
-            ChangelogSearchPanel.Visibility = Visibility.Collapsed;
-            ChangelogTextBox.Focus();
+        if (eventArgs.Key == Key.Escape && ChangelogSearchPanel.Visibility == Visibility.Visible) {
+            CloseChangelogSearch();
             eventArgs.Handled = true;
         }
     }
 
     private void ChangelogSearchBox_TextChanged(object sender, TextChangedEventArgs eventArgs)
     {
-        FindNextChangelogMatch();
+        ShowChangelogSearchMatch(changelogSearch.UpdateQuery(ChangelogTextBox.Text, ChangelogSearchBox.Text));
     }
 
     private void ChangelogSearchBox_KeyDown(object sender, KeyEventArgs eventArgs)
     {
         if (eventArgs.Key == Key.Enter) {
-            FindNextChangelogMatch();
+            bool previous = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
+            ShowChangelogSearchMatch(changelogSearch.Move(ChangelogTextBox.Text, previous));
             eventArgs.Handled = true;
         }
     }
 
     private void ChangelogSearchNext_Click(object sender, RoutedEventArgs eventArgs)
     {
-        FindNextChangelogMatch();
+        ShowChangelogSearchMatch(changelogSearch.Move(ChangelogTextBox.Text, previous: false));
     }
 
-    private void FindNextChangelogMatch()
+    private void ChangelogTextBox_TextChanged(object sender, TextChangedEventArgs eventArgs)
     {
-        string query = ChangelogSearchBox.Text;
-        if (string.IsNullOrWhiteSpace(query)) {
+        if (ChangelogSearchPanel.Visibility != Visibility.Visible) {
             return;
         }
 
-        string changelog = ChangelogTextBox.Text;
-        int searchStart = ChangelogTextBox.SelectionStart + ChangelogTextBox.SelectionLength;
-        int match = changelog.IndexOf(query, searchStart, StringComparison.OrdinalIgnoreCase);
-        if (match < 0 && searchStart > 0) {
-            match = changelog.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-        }
+        ShowChangelogSearchMatch(changelogSearch.UpdateQuery(ChangelogTextBox.Text, ChangelogSearchBox.Text));
+    }
 
-        if (match < 0) {
+    private void ShowChangelogSearchMatch(ChangelogSearchMatch match)
+    {
+        if (!match.IsFound) {
+            ChangelogSearchStatus.Text = string.IsNullOrEmpty(ChangelogSearchBox.Text) ? string.Empty : "Not found";
             return;
         }
 
-        ChangelogTextBox.Select(match, query.Length);
-        int line = ChangelogTextBox.GetLineIndexFromCharacterIndex(match);
+        ChangelogSearchStatus.Text = match.Current + "/" + match.Total;
+        ChangelogTextBox.Select(match.Start, match.Length);
+        int line = ChangelogTextBox.GetLineIndexFromCharacterIndex(match.Start);
         if (line >= 0) {
             ChangelogTextBox.ScrollToLine(line);
         }
     }
 
-    private void ChangelogSearchBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs eventArgs)
+    private void CloseChangelogSearch()
     {
-        Dispatcher.BeginInvoke(() => {
-            if (!ChangelogSearchPanel.IsKeyboardFocusWithin) {
-                ChangelogSearchBox.Clear();
-                ChangelogSearchPanel.Visibility = Visibility.Collapsed;
-            }
-        });
+        changelogSearch.Reset();
+        ChangelogSearchBox.Clear();
+        ChangelogSearchStatus.Text = string.Empty;
+        ChangelogSearchPanel.Visibility = Visibility.Collapsed;
+        ChangelogTextBox.Focus();
     }
 
 }
@@ -265,7 +263,7 @@ public sealed class LauncherViewModel : INotifyPropertyChanged
             LauncherSettings currentSettings = await SaveSettingsAsync(cancellationToken);
             Status = $"Running Terraria {selected.Entry.Version}...";
             await coordinator.LaunchAsync(selected.Entry, currentSettings, isolateLegacyProfile, cancellationToken);
-            Status = $"Terraria {selected.Entry.Version} closed and the Steam installation was restored.";
+            Status = $"Terraria {selected.Entry.Version} closed.";
         });
     }
 

@@ -19,9 +19,26 @@ public sealed class VersionDiscoveryTests
     [InlineData("server-1458.zip")]
     [InlineData("terraria-server-invalid.zip")]
     [InlineData("terraria-server-258.zip")]
+    [InlineData("terraria-server-145100.zip")]
+    [InlineData("")]
     public void InvalidDedicatedServerArchiveIsRejected(string archiveName)
     {
         Assert.False(LatestTerrariaVersionDiscovery.TryParseServerArchive(archiveName, out _));
+    }
+
+    [Fact]
+    public void DedicatedServerDiscoverySelectsTheHighestValidArchive()
+    {
+        LatestTerrariaVersion? latest = LatestTerrariaVersionDiscovery.SelectLatest(new[] {
+            "terraria-server-1457.zip",
+            "not-a-server.zip",
+            "terraria-server-14510.zip",
+            "terraria-server-1458.zip"
+        });
+
+        Assert.NotNull(latest);
+        Assert.Equal("1.4.5.10", latest.Version);
+        Assert.Equal("terraria-server-14510.zip", latest.ServerArchiveName);
     }
 
     [Fact]
@@ -87,5 +104,15 @@ public sealed class VersionDiscoveryTests
     public void VersionsBeforeOnePointThreeUseSteamLaunch(string version, bool expected)
     {
         Assert.Equal(expected, TerrariaLaunchService.RequiresSteamLaunch(version));
+    }
+
+    [Theory]
+    [InlineData("1.2", true)]
+    [InlineData("1.2.4.1", true)]
+    [InlineData("1.3", false)]
+    [InlineData("1.4.5.8", false)]
+    public void OnlySteamLaunchedVersionsRequireSteamDirectoryRedirection(string version, bool expected)
+    {
+        Assert.Equal(expected, TerrariaLaunchService.RequiresSteamDirectoryJunction(version));
     }
 }

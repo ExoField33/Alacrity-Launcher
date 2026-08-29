@@ -24,7 +24,7 @@ public sealed class TerrariaLaunchService
             return;
         }
 
-        if (IsGameStillRunning(state.TerrariaProcessId)) {
+        if (IsTerrariaLaunchStillRunning(state)) {
             throw new InvalidOperationException("Terraria is still running from an interrupted launcher session. Close it before recovery.");
         }
 
@@ -38,8 +38,11 @@ public sealed class TerrariaLaunchService
         await RecoverAsync(cancellationToken).ConfigureAwait(false);
         EnsureTerrariaIsNotAlreadyRunning();
 
-        string backupDirectory = request.TerrariaInstallation.TerrariaDirectory + ".alacrity-launcher-backup";
-        if (Directory.Exists(backupDirectory)) {
+        bool usesSteamDirectoryJunction = RequiresSteamDirectoryJunction(request.Version);
+        string backupDirectory = usesSteamDirectoryJunction
+            ? request.TerrariaInstallation.TerrariaDirectory + ".alacrity-launcher-backup"
+            : string.Empty;
+        if (usesSteamDirectoryJunction && Directory.Exists(backupDirectory)) {
             throw new IOException($"The stale Terraria backup directory '{backupDirectory}' must be recovered before launch.");
         }
 
@@ -48,6 +51,7 @@ public sealed class TerrariaLaunchService
             TerrariaDirectory = request.TerrariaInstallation.TerrariaDirectory,
             BackupTerrariaDirectory = backupDirectory,
             VersionDirectory = request.VersionDirectory,
+            UsesSteamDirectoryJunction = usesSteamDirectoryJunction,
             LegacyProfileSwap = ShouldSwapVersionSettings(request)
                 ? legacyProfiles.CreateState(request.CurrentVersion, request.Version, request.IsolateLegacyProfile)
                 : null
@@ -59,23 +63,32 @@ public sealed class TerrariaLaunchService
                 legacyProfiles.Activate(state.LegacyProfileSwap, () => journal.Write(state));
             }
 
-            Directory.Move(state.TerrariaDirectory, state.BackupTerrariaDirectory);
-            state.TerrariaDirectoryMoved = true;
+            if (usesSteamDirectoryJunction) {
+                Directory.Move(state.TerrariaDirectory, state.BackupTerrariaDirectory);
+                state.TerrariaDirectoryMoved = true;
+                journal.Write(state);
+
+                await junctions.CreateAsync(state.TerrariaDirectory, state.VersionDirectory, cancellationToken).ConfigureAwait(false);
+                state.JunctionCreated = true;
+                journal.Write(state);
+            }
+
+            state.TerrariaLaunchInProgress = true;
+            state.TerrariaLaunchStartedUtc = DateTime.UtcNow;
             journal.Write(state);
 
-            await junctions.CreateAsync(state.TerrariaDirectory, state.VersionDirectory, cancellationToken).ConfigureAwait(false);
-            state.JunctionCreated = true;
-            journal.Write(state);
-
-            using Process terraria = await StartTerrariaAsync(request, state.TerrariaDirectory, cancellationToken).ConfigureAwait(false);
+            using Process terraria = await StartTerrariaAsync(request, usesSteamDirectoryJunction, state.TerrariaLaunchStartedUtc.Value, cancellationToken).ConfigureAwait(false);
             state.TerrariaProcessId = terraria.Id;
+            state.TerrariaProcessStartedUtc = terraria.StartTime.ToUniversalTime();
             journal.Write(state);
 
             await terraria.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            state.TerrariaLaunchInProgress = false;
+            journal.Write(state);
             await RestoreAsync(state, CancellationToken.None).ConfigureAwait(false);
         }
         catch {
-            if (!IsGameStillRunning(state.TerrariaProcessId)) {
+            if (!IsTerrariaLaunchStillRunning(state)) {
                 await RestoreAsync(state, CancellationToken.None).ConfigureAwait(false);
             }
 
@@ -85,25 +98,27 @@ public sealed class TerrariaLaunchService
 
     private async Task RestoreAsync(LaunchRecoveryState state, CancellationToken cancellationToken)
     {
-        bool isJunction = IsDirectoryJunction(state.TerrariaDirectory);
-        if (state.JunctionCreated && Directory.Exists(state.TerrariaDirectory) && !isJunction) {
-            throw new IOException("Launcher recovery found a normal Terraria directory where its temporary junction should be. It will not delete it automatically.");
-        }
-
-        if (isJunction) {
-            await junctions.RemoveAsync(state.TerrariaDirectory, cancellationToken).ConfigureAwait(false);
-            state.JunctionCreated = false;
-            journal.Write(state);
-        }
-
-        if (Directory.Exists(state.BackupTerrariaDirectory)) {
-            if (Directory.Exists(state.TerrariaDirectory)) {
-                throw new IOException("Launcher recovery found both the original Terraria directory and its backup. It will not choose one automatically.");
+        if (UsesSteamDirectoryJunction(state)) {
+            bool isJunction = IsDirectoryJunction(state.TerrariaDirectory);
+            if (state.JunctionCreated && Directory.Exists(state.TerrariaDirectory) && !isJunction) {
+                throw new IOException("Launcher recovery found a normal Terraria directory where its temporary junction should be. It will not delete it automatically.");
             }
 
-            Directory.Move(state.BackupTerrariaDirectory, state.TerrariaDirectory);
-            state.TerrariaDirectoryMoved = false;
-            journal.Write(state);
+            if (isJunction) {
+                await junctions.RemoveAsync(state.TerrariaDirectory, cancellationToken).ConfigureAwait(false);
+                state.JunctionCreated = false;
+                journal.Write(state);
+            }
+
+            if (Directory.Exists(state.BackupTerrariaDirectory)) {
+                if (Directory.Exists(state.TerrariaDirectory)) {
+                    throw new IOException("Launcher recovery found both the original Terraria directory and its backup. It will not choose one automatically.");
+                }
+
+                Directory.Move(state.BackupTerrariaDirectory, state.TerrariaDirectory);
+                state.TerrariaDirectoryMoved = false;
+                journal.Write(state);
+            }
         }
 
         if (state.LegacyProfileSwap is { IsActivated: true } profileSwap) {
@@ -134,21 +149,25 @@ public sealed class TerrariaLaunchService
         return process;
     }
 
-    private static async Task<Process> StartTerrariaAsync(TerrariaLaunchRequest request, string terrariaDirectory, CancellationToken cancellationToken)
+    private static async Task<Process> StartTerrariaAsync(TerrariaLaunchRequest request, bool usesSteamDirectoryJunction, DateTime launchStartedUtc, CancellationToken cancellationToken)
     {
-        if (!RequiresSteamLaunch(request.Version)) {
-            return StartTerraria(terrariaDirectory);
+        if (!usesSteamDirectoryJunction) {
+            return StartTerraria(request.VersionDirectory);
         }
 
-        DateTime launchStartUtc = DateTime.UtcNow;
         StartTerrariaThroughSteam(request.TerrariaInstallation);
-        return await WaitForSteamLaunchedTerrariaAsync(launchStartUtc, cancellationToken).ConfigureAwait(false);
+        return await WaitForSteamLaunchedTerrariaAsync(launchStartedUtc, cancellationToken).ConfigureAwait(false);
     }
 
     internal static bool RequiresSteamLaunch(string version)
     {
         return TerrariaVersionNumber.TryParse(version, out TerrariaVersionNumber parsed)
             && parsed.CompareTo(SteamLaunchBoundary) < 0;
+    }
+
+    internal static bool RequiresSteamDirectoryJunction(string version)
+    {
+        return RequiresSteamLaunch(version);
     }
 
     private static void StartTerrariaThroughSteam(SteamTerrariaInstallation installation)
@@ -250,19 +269,63 @@ public sealed class TerrariaLaunchService
         return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
     }
 
-    private static bool IsGameStillRunning(int? processId)
+    internal static bool MatchesRecordedTerrariaProcess(LaunchRecoveryState state, int processId, DateTime processStartedUtc)
     {
-        if (!processId.HasValue) {
+        return state.TerrariaProcessId == processId
+            && state.TerrariaProcessStartedUtc.HasValue
+            && state.TerrariaProcessStartedUtc.Value.ToUniversalTime() == processStartedUtc.ToUniversalTime();
+    }
+
+    private static bool IsTerrariaLaunchStillRunning(LaunchRecoveryState state)
+    {
+        if (!state.TerrariaLaunchInProgress) {
+            if (state.TerrariaProcessId.HasValue && IsProcessRunning(state.TerrariaProcessId.Value)) {
+                throw new IOException("Launcher recovery found a legacy launch record with a live Terraria process but no process-start identity. Close Terraria before recovery.");
+            }
+
             return false;
         }
 
+        if (!state.TerrariaLaunchStartedUtc.HasValue) {
+            throw new IOException("Launcher recovery cannot safely identify the interrupted Terraria process because its launch timestamp is missing.");
+        }
+
+        if (state.TerrariaProcessId.HasValue && state.TerrariaProcessStartedUtc.HasValue) {
+            try {
+                using Process process = Process.GetProcessById(state.TerrariaProcessId.Value);
+                if (!process.HasExited
+                    && MatchesRecordedTerrariaProcess(state, process.Id, process.StartTime.ToUniversalTime())) {
+                    return true;
+                }
+            }
+            catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {
+            }
+        }
+
+        using Process? terraria = TryFindTerrariaStartedAfter(state.TerrariaLaunchStartedUtc.Value);
+        return terraria is not null;
+    }
+
+    private static bool IsProcessRunning(int processId)
+    {
         try {
-            using Process process = Process.GetProcessById(processId.Value);
+            using Process process = Process.GetProcessById(processId);
             return !process.HasExited;
         }
         catch (ArgumentException) {
             return false;
         }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception) {
+            throw new IOException("Launcher recovery could not safely inspect the recorded Terraria process.", exception);
+        }
+    }
+
+    private static bool UsesSteamDirectoryJunction(LaunchRecoveryState state)
+    {
+        return state.UsesSteamDirectoryJunction
+            || state.TerrariaDirectoryMoved
+            || state.JunctionCreated
+            || !string.IsNullOrWhiteSpace(state.BackupTerrariaDirectory) && Directory.Exists(state.BackupTerrariaDirectory);
     }
 
     private static void ValidateRequest(TerrariaLaunchRequest request)

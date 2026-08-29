@@ -66,8 +66,12 @@
                    Width="170"
                    VerticalContentAlignment="Center"
                    TextChanged="ChangelogSearchBox_TextChanged"
-                   KeyDown="ChangelogSearchBox_KeyDown"
-                   LostKeyboardFocus="ChangelogSearchBox_LostKeyboardFocus" />
+                   KeyDown="ChangelogSearchBox_KeyDown" />
+          <TextBlock x:Name="ChangelogSearchStatus"
+                     MinWidth="44"
+                     Margin="6,0,0,0"
+                     VerticalAlignment="Center"
+                     Foreground="{StaticResource MutedTextBrush}" />
           <Button Content="Next" Click="ChangelogSearchNext_Click" Margin="6,0,0,0" />
         </StackPanel>
       </DockPanel>
@@ -76,6 +80,7 @@
                  Text="{Binding SelectedChangelog, Mode=OneWay}"
                  IsReadOnly="True"
                  IsInactiveSelectionHighlightEnabled="True"
+                 TextChanged="ChangelogTextBox_TextChanged"
                  BorderThickness="0"
                  Background="Transparent"
                  Foreground="{StaticResource TextBrush}"

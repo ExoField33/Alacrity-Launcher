@@ -17,6 +17,8 @@ Historical depot downloads use DepotDownloader because Steam requires authentica
 
 DepotDownloader remains a separate GPL-2.0 tool. Its upstream source and license are identified in `THIRD-PARTY-NOTICES.txt`, which is included with launcher releases.
 
+Terraria 1.3 and newer launch directly from `Versions/<version>/Terraria.exe`; the launcher does not modify Steam's Terraria directory for those versions. Versions before 1.3 still require Steam launch, so only that path temporarily backs up the Steam installation and creates a version junction. The recovery journal restores that path only after confirming the recorded game process is no longer running.
+
 When launching a version different from the installed Steam version, the launcher always isolates `config.json`, `favorites.json`, and `input profiles.json` in `Documents/My Games/Terraria`. This keeps language, resolution, input bindings, and favorites version-specific without affecting player or world data.
 
 For Terraria 1.3.5.3 and older, choosing the recommended isolated profile option additionally isolates `Players`, `Worlds`, `achievements.dat`, `config.dat`, and `servers.dat`. A journal records every swap so the next launcher start can restore an interrupted launch.
