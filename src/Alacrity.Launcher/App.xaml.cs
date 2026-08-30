@@ -12,11 +12,15 @@ public partial class App : Application
     private readonly HttpClient httpClient = new HttpClient {
         Timeout = TimeSpan.FromSeconds(12)
     };
+    private readonly HttpClient archiveHttpClient = new HttpClient {
+        Timeout = Timeout.InfiniteTimeSpan
+    };
     private Mutex? singleInstanceMutex;
 
     public App()
     {
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Alacrity-Launcher/0.1.1");
+        archiveHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Alacrity-Launcher/0.1.1");
     }
 
     protected override void OnStartup(StartupEventArgs arguments)
@@ -48,6 +52,7 @@ public partial class App : Application
                 new DepotDownloaderProvisioner(paths, httpClient),
                 new SteamAccountNameLocator(),
                 new DepotDownloaderManifestDownloader(),
+                new ArchiveVersionDownloader(archiveHttpClient),
                 new SteamClientLauncher(),
                 new TerrariaLaunchService(journal, new DirectoryJunctionService(), new LegacyProfileIsolationService()));
 
@@ -67,6 +72,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs eventArgs)
     {
         httpClient.Dispose();
+        archiveHttpClient.Dispose();
         singleInstanceMutex?.Dispose();
         base.OnExit(eventArgs);
     }

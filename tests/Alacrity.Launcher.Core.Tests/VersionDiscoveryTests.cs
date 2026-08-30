@@ -96,23 +96,36 @@ public sealed class VersionDiscoveryTests
     }
 
     [Theory]
+    [InlineData("0.9.9", false)]
+    [InlineData("1.0", true)]
     [InlineData("1.2", true)]
     [InlineData("1.2.4.1", true)]
     [InlineData("1.3", false)]
     [InlineData("1.3.0.1", false)]
     [InlineData("1.4.5.8.1", false)]
-    public void VersionsBeforeOnePointThreeUseSteamLaunch(string version, bool expected)
+    public void OnlyVersionsFromOnePointZeroToOnePointThreeRequireSteamLaunch(string version, bool expected)
     {
         Assert.Equal(expected, TerrariaLaunchService.RequiresSteamLaunch(version));
     }
 
     [Theory]
+    [InlineData("0.9.9", false)]
+    [InlineData("1.0", true)]
     [InlineData("1.2", true)]
     [InlineData("1.2.4.1", true)]
     [InlineData("1.3", false)]
     [InlineData("1.4.5.8", false)]
-    public void OnlySteamLaunchedVersionsRequireSteamDirectoryRedirection(string version, bool expected)
+    public void SteamDirectoryRedirectionMatchesTheSteamLaunchRange(string version, bool expected)
     {
         Assert.Equal(expected, TerrariaLaunchService.RequiresSteamDirectoryJunction(version));
+    }
+
+    [Theory]
+    [InlineData("0.9.9", true)]
+    [InlineData("1.0", false)]
+    [InlineData("1.3", false)]
+    public void VersionsBelowOnePointZeroCanLaunchWithoutSteam(string version, bool expected)
+    {
+        Assert.Equal(expected, TerrariaLaunchService.CanLaunchWithoutSteam(version));
     }
 }

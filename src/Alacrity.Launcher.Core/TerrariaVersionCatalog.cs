@@ -38,10 +38,16 @@ public sealed class TerrariaVersionEntry
 
     public string? ManifestId { get; init; }
 
+    /// <summary>
+    /// Optional HTTPS ZIP source used when this historical version is not fetched from Steam.
+    /// URL sources take precedence over depot manifests when both are present.
+    /// </summary>
+    public string? Url { get; init; }
+
     public bool IsAutomaticallyDiscovered { get; init; }
 
     [JsonIgnore]
-    public bool CanDownload => !string.IsNullOrWhiteSpace(ManifestId);
+    public bool CanDownload => !string.IsNullOrWhiteSpace(Url) || !string.IsNullOrWhiteSpace(ManifestId);
 
     public void Validate()
     {
@@ -51,6 +57,12 @@ public sealed class TerrariaVersionEntry
 
         if (!string.IsNullOrWhiteSpace(ManifestId) && !ManifestId.All(char.IsAsciiDigit)) {
             throw new InvalidDataException($"The manifest id for Terraria {Version} must contain digits only.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(Url)
+            && (!Uri.TryCreate(Url, UriKind.Absolute, out Uri? archiveUri)
+                || !string.Equals(archiveUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))) {
+            throw new InvalidDataException($"The URL for Terraria {Version} must be an absolute HTTPS URL.");
         }
     }
 }

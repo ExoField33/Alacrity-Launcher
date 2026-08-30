@@ -15,6 +15,7 @@ public sealed class LauncherCoordinator
     private readonly DepotDownloaderProvisioner depotDownloaderProvisioner;
     private readonly SteamAccountNameLocator steamAccountNameLocator;
     private readonly DepotDownloaderManifestDownloader depotDownloader;
+    private readonly ArchiveVersionDownloader archiveDownloader;
     private readonly SteamClientLauncher steamClientLauncher;
     private readonly TerrariaLaunchService launchService;
 
@@ -30,6 +31,7 @@ public sealed class LauncherCoordinator
         DepotDownloaderProvisioner depotDownloaderProvisioner,
         SteamAccountNameLocator steamAccountNameLocator,
         DepotDownloaderManifestDownloader depotDownloader,
+        ArchiveVersionDownloader archiveDownloader,
         SteamClientLauncher steamClientLauncher,
         TerrariaLaunchService launchService)
     {
@@ -44,6 +46,7 @@ public sealed class LauncherCoordinator
         this.depotDownloaderProvisioner = depotDownloaderProvisioner;
         this.steamAccountNameLocator = steamAccountNameLocator;
         this.depotDownloader = depotDownloader;
+        this.archiveDownloader = archiveDownloader;
         this.steamClientLauncher = steamClientLauncher;
         this.launchService = launchService;
     }
@@ -76,6 +79,7 @@ public sealed class LauncherCoordinator
                 catalog.Upsert(new TerrariaVersionEntry {
                     Version = latest.Version,
                     ManifestId = string.Equals(installedSteamVersion, latest.Version, StringComparison.OrdinalIgnoreCase) ? installedManifestId ?? existing?.ManifestId : existing?.ManifestId,
+                    Url = existing?.Url,
                     IsAutomaticallyDiscovered = true
                 });
                 await catalogStore.SaveAsync(catalog, cancellationToken).ConfigureAwait(false);
@@ -98,14 +102,19 @@ public sealed class LauncherCoordinator
             return;
         }
 
+        if (!string.IsNullOrWhiteSpace(entry.Url)) {
+            await DownloadArchiveVersionAsync(entry, destinationDirectory, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         SteamTerrariaInstallation? installation = installationLocator.Locate(settings.TerrariaDirectory);
         if (installation is not null && string.Equals(TryReadInstalledVersion(installation), entry.Version, StringComparison.OrdinalIgnoreCase)) {
             await versionInstaller.CopyCurrentSteamInstallationAsync(installation, entry.Version, cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        if (!entry.CanDownload) {
-            throw new InvalidOperationException($"Terraria {entry.Version} is not installed and does not have a Steam manifest id in versions.json.");
+        if (string.IsNullOrWhiteSpace(entry.ManifestId)) {
+            throw new InvalidOperationException($"Terraria {entry.Version} is not installed and does not have a download source in versions.json.");
         }
 
         string? steamAccountName = settings.SteamAccountName ?? steamAccountNameLocator.TryLocate(installation);
@@ -137,16 +146,25 @@ public sealed class LauncherCoordinator
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(settings);
         SteamTerrariaInstallation? installation = installationLocator.Locate(settings.TerrariaDirectory);
-        if (installation is null) {
+        bool requiresSteamLaunch = TerrariaLaunchService.RequiresSteamLaunch(entry.Version);
+        bool canLaunchWithoutSteam = TerrariaLaunchService.CanLaunchWithoutSteam(entry.Version);
+        if (requiresSteamLaunch && installation is null) {
             throw new DirectoryNotFoundException("Terraria could not be found in a Steam library. Choose its installed folder in launcher settings.");
         }
 
         string? currentVersion = TryReadInstalledVersion(installation);
-        if (currentVersion is null) {
+        if (requiresSteamLaunch && currentVersion is null) {
             throw new InvalidDataException("The installed Steam Terraria changelog does not identify its version.");
         }
 
-        await steamClientLauncher.EnsureRunningAsync(installation, cancellationToken).ConfigureAwait(false);
+        if (!canLaunchWithoutSteam) {
+            if (installation is null) {
+                throw new DirectoryNotFoundException("Terraria could not be found in a Steam library. Choose its installed folder in launcher settings.");
+            }
+
+            await steamClientLauncher.EnsureRunningAsync(installation, cancellationToken).ConfigureAwait(false);
+        }
+
         await launchService.LaunchAsync(new TerrariaLaunchRequest {
             TerrariaInstallation = installation,
             Version = entry.Version,
@@ -192,6 +210,21 @@ public sealed class LauncherCoordinator
     {
         string changelogPath = Path.Combine(terrariaDirectory, "changelog.txt");
         return File.Exists(changelogPath) ? changelogReader.Read(changelogPath) : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task DownloadArchiveVersionAsync(TerrariaVersionEntry entry, string destinationDirectory, CancellationToken cancellationToken)
+    {
+        string stagingDirectory = destinationDirectory + ".staging-" + Guid.NewGuid().ToString("N");
+        try {
+            string contentDirectory = await archiveDownloader.DownloadAndExtractAsync(entry.Version, entry.Url!, stagingDirectory, cancellationToken).ConfigureAwait(false);
+            versionInstaller.FinalizeStagedVersion(contentDirectory, destinationDirectory, entry.Version, "archive-url");
+        }
+        catch {
+            TryDeleteDirectory(stagingDirectory);
+            throw;
+        }
+
+        TryDeleteDirectory(stagingDirectory);
     }
 
     private static void TryDeleteDirectory(string directory)

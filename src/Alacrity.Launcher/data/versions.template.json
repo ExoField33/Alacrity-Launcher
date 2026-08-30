@@ -386,7 +386,71 @@
       "version": "1.2",
       "manifestId": "117201757688892592",
       "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.1.2",
+      "manifestId": "5797236311978194792",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.1.1",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.1.1/Terraria-v1.1.1.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.1",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.1/Terraria-v1.1.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0.6.1",
+      "manifestId": "201933454557533956",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0.6",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0.6/Terraria-v1.0.6.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0.5",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0.5/Terraria-v1.0.5.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0.4",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0.4/Terraria-v1.0.4.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0.3",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0.3/Terraria-v1.0.3.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0.2",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0.2/Terraria-v1.0.2.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0.1",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0.1/Terraria-v1.0.1.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "1.0",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0/Terraria-v1.0.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "0.7",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v0.7/Terraria-v0.7.zip?raw=true",
+      "isAutomaticallyDiscovered": false
+    },
+    {
+      "version": "0.1",
+      "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v0.1/Terraria-v0.1.zip?raw=true",
+      "isAutomaticallyDiscovered": false
     }
-
   ]
 }

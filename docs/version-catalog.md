@@ -1,12 +1,19 @@
 # Terraria Version Catalog
 
-On first launch, the launcher copies `data/versions.template.json` to `data/versions.json` next to `Alacrity Launcher.exe`. The template is the distributable catalog; `versions.json` is the live user-managed copy. `BuildAlacrityLauncher.bat` preserves the live catalog and launcher settings across rebuilds while refreshing the published template from source.
+On first launch, the launcher copies `data/versions.template.json` to `data/versions.json` next to `Alacrity Launcher.exe`. The template is the distributable catalog; `versions.json` is the live user-managed copy. On later startup, newly added template entries are merged into the live catalog without overwriting entries already present there. `BuildAlacrityLauncher.bat` preserves the live catalog and launcher settings across rebuilds while refreshing the published template from source.
 
 Add historical versions by inserting a `version` and its matching Windows depot `manifestId` from SteamDB into `src/Alacrity.Launcher/data/versions.template.json` before publishing:
 
 {
   "version": "1.3.5.3",
   "manifestId": "1234567890123456789"
+}
+
+Alternatively, a version can use an HTTPS ZIP `url` instead of a Steam manifest. The launcher downloads it into a temporary staging directory, extracts it safely, finds the one `Terraria.exe` inside it, and atomically installs that directory into `Versions/<version>`. GitHub blob URLs are accepted and converted to their raw-download route automatically. A `url` takes precedence when both fields are present:
+
+{
+  "version": "1.0.1",
+  "url": "https://github.com/RussDev7/LostTerrariaArchive/blob/main/Terraria-v1.0.1/Terraria-v1.0.1.zip"
 }
 
 The launcher uses Terraria app `105600` and Windows depot `105601`. Keep one entry per version.
@@ -17,7 +24,7 @@ Historical depot downloads use DepotDownloader because Steam requires authentica
 
 DepotDownloader remains a separate GPL-2.0 tool. Its upstream source and license are identified in `THIRD-PARTY-NOTICES.txt`, which is included with launcher releases.
 
-Terraria 1.3 and newer launch directly from `Versions/<version>/Terraria.exe`; the launcher does not modify Steam's Terraria directory for those versions. Versions before 1.3 still require Steam launch, so only that path temporarily backs up the Steam installation and creates a version junction. The recovery journal restores that path only after confirming the recorded game process is no longer running.
+Terraria 1.3 and newer, and all versions below 1.0, launch directly from `Versions/<version>/Terraria.exe`; the launcher does not modify Steam's Terraria directory for those versions. Versions from 1.0 up to (but not including) 1.3 still require Steam launch, so only that path temporarily backs up the Steam installation and creates a version junction. The recovery journal restores that path only after confirming the recorded game process is no longer running.
 
 When launching a version different from the installed Steam version, the launcher always isolates `config.json`, `favorites.json`, and `input profiles.json` in `Documents/My Games/Terraria`. This keeps language, resolution, input bindings, and favorites version-specific without affecting player or world data.
 

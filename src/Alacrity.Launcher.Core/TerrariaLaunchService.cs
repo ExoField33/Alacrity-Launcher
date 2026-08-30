@@ -4,6 +4,7 @@ namespace Alacrity.Launcher.Core;
 
 public sealed class TerrariaLaunchService
 {
+    private static readonly TerrariaVersionNumber DirectLaunchBoundary = ParseVersion("1.0");
     private static readonly TerrariaVersionNumber SteamLaunchBoundary = ParseVersion("1.3");
 
     private readonly LaunchRecoveryJournal journal;
@@ -40,7 +41,7 @@ public sealed class TerrariaLaunchService
 
         bool usesSteamDirectoryJunction = RequiresSteamDirectoryJunction(request.Version);
         string backupDirectory = usesSteamDirectoryJunction
-            ? request.TerrariaInstallation.TerrariaDirectory + ".alacrity-launcher-backup"
+            ? request.TerrariaInstallation!.TerrariaDirectory + ".alacrity-launcher-backup"
             : string.Empty;
         if (usesSteamDirectoryJunction && Directory.Exists(backupDirectory)) {
             throw new IOException($"The stale Terraria backup directory '{backupDirectory}' must be recovered before launch.");
@@ -48,12 +49,12 @@ public sealed class TerrariaLaunchService
 
         var state = new LaunchRecoveryState {
             SelectedVersion = request.Version,
-            TerrariaDirectory = request.TerrariaInstallation.TerrariaDirectory,
+            TerrariaDirectory = request.TerrariaInstallation?.TerrariaDirectory ?? string.Empty,
             BackupTerrariaDirectory = backupDirectory,
             VersionDirectory = request.VersionDirectory,
             UsesSteamDirectoryJunction = usesSteamDirectoryJunction,
             LegacyProfileSwap = ShouldSwapVersionSettings(request)
-                ? legacyProfiles.CreateState(request.CurrentVersion, request.Version, request.IsolateLegacyProfile)
+                ? legacyProfiles.CreateState(request.CurrentVersion!, request.Version, request.IsolateLegacyProfile)
                 : null
         };
 
@@ -155,19 +156,26 @@ public sealed class TerrariaLaunchService
             return StartTerraria(request.VersionDirectory);
         }
 
-        StartTerrariaThroughSteam(request.TerrariaInstallation);
+        StartTerrariaThroughSteam(request.TerrariaInstallation ?? throw new InvalidOperationException("A Steam Terraria installation is required for this launch."));
         return await WaitForSteamLaunchedTerrariaAsync(launchStartedUtc, cancellationToken).ConfigureAwait(false);
     }
 
     internal static bool RequiresSteamLaunch(string version)
     {
         return TerrariaVersionNumber.TryParse(version, out TerrariaVersionNumber parsed)
+            && parsed.CompareTo(DirectLaunchBoundary) >= 0
             && parsed.CompareTo(SteamLaunchBoundary) < 0;
     }
 
     internal static bool RequiresSteamDirectoryJunction(string version)
     {
         return RequiresSteamLaunch(version);
+    }
+
+    internal static bool CanLaunchWithoutSteam(string version)
+    {
+        return TerrariaVersionNumber.TryParse(version, out TerrariaVersionNumber parsed)
+            && parsed.CompareTo(DirectLaunchBoundary) < 0;
     }
 
     private static void StartTerrariaThroughSteam(SteamTerrariaInstallation installation)
@@ -338,24 +346,29 @@ public sealed class TerrariaLaunchService
             throw new ArgumentException("The selected Terraria version is invalid.", nameof(request));
         }
 
-        if (!TerrariaVersionNumber.TryParse(request.CurrentVersion, out _)) {
+        if (RequiresSteamLaunch(request.Version) && request.TerrariaInstallation is null) {
+            throw new ArgumentException("A Steam Terraria installation is required for this launch.", nameof(request));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CurrentVersion) && !TerrariaVersionNumber.TryParse(request.CurrentVersion, out _)) {
             throw new ArgumentException("The current Terraria version is invalid.", nameof(request));
         }
     }
 
     private static bool ShouldSwapVersionSettings(TerrariaLaunchRequest request)
     {
-        return !string.Equals(request.CurrentVersion, request.Version, StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(request.CurrentVersion)
+            && !string.Equals(request.CurrentVersion, request.Version, StringComparison.OrdinalIgnoreCase);
     }
 }
 
 public sealed class TerrariaLaunchRequest
 {
-    public required SteamTerrariaInstallation TerrariaInstallation { get; init; }
+    public SteamTerrariaInstallation? TerrariaInstallation { get; init; }
 
     public required string Version { get; init; }
 
-    public required string CurrentVersion { get; init; }
+    public string? CurrentVersion { get; init; }
 
     public required string VersionDirectory { get; init; }
 

@@ -30,15 +30,15 @@ public sealed class TerrariaVersionCatalogStore
                 return await LoadAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            TerrariaVersionCatalog template = CreateTemplate();
-            await SaveAsync(template, cancellationToken).ConfigureAwait(false);
-            return template;
+            TerrariaVersionCatalog emptyCatalog = CreateTemplate();
+            await SaveAsync(emptyCatalog, cancellationToken).ConfigureAwait(false);
+            return emptyCatalog;
         }
 
-        await using FileStream stream = new FileStream(paths.VersionCatalogPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        TerrariaVersionCatalog? catalog = await JsonSerializer.DeserializeAsync<TerrariaVersionCatalog>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
-        if (catalog is null) {
-            throw new InvalidDataException("versions.json did not contain a Terraria version catalog.");
+        TerrariaVersionCatalog catalog = await LoadCatalogAsync(paths.VersionCatalogPath, "versions.json", cancellationToken).ConfigureAwait(false);
+        TerrariaVersionCatalog? template = await TryLoadTemplateAsync(cancellationToken).ConfigureAwait(false);
+        if (template is not null && MergeMissingTemplateEntries(catalog, template)) {
+            await SaveAsync(catalog, cancellationToken).ConfigureAwait(false);
         }
 
         Validate(catalog);
@@ -64,6 +64,63 @@ public sealed class TerrariaVersionCatalogStore
     private static TerrariaVersionCatalog CreateTemplate()
     {
         return new TerrariaVersionCatalog();
+    }
+
+    internal static bool MergeMissingTemplateEntries(TerrariaVersionCatalog catalog, TerrariaVersionCatalog template)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(template);
+        Validate(catalog);
+        Validate(template);
+
+        bool changed = false;
+        foreach (TerrariaVersionEntry templateEntry in template.Versions) {
+            TerrariaVersionEntry? existingEntry = catalog.Find(templateEntry.Version);
+            if (existingEntry is not null) {
+                if (!string.IsNullOrWhiteSpace(existingEntry.Url) || string.IsNullOrWhiteSpace(templateEntry.Url)) {
+                    continue;
+                }
+
+                catalog.Upsert(new TerrariaVersionEntry {
+                    Version = existingEntry.Version,
+                    ManifestId = existingEntry.ManifestId,
+                    Url = templateEntry.Url,
+                    IsAutomaticallyDiscovered = existingEntry.IsAutomaticallyDiscovered
+                });
+                changed = true;
+                continue;
+            }
+
+            catalog.Upsert(new TerrariaVersionEntry {
+                Version = templateEntry.Version,
+                ManifestId = templateEntry.ManifestId,
+                Url = templateEntry.Url,
+                IsAutomaticallyDiscovered = templateEntry.IsAutomaticallyDiscovered
+            });
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private async Task<TerrariaVersionCatalog?> TryLoadTemplateAsync(CancellationToken cancellationToken)
+    {
+        string templatePath = Path.Combine(paths.DataDirectory, "versions.template.json");
+        return File.Exists(templatePath)
+            ? await LoadCatalogAsync(templatePath, "versions.template.json", cancellationToken).ConfigureAwait(false)
+            : null;
+    }
+
+    private static async Task<TerrariaVersionCatalog> LoadCatalogAsync(string path, string displayName, CancellationToken cancellationToken)
+    {
+        await using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        TerrariaVersionCatalog? catalog = await JsonSerializer.DeserializeAsync<TerrariaVersionCatalog>(stream, SerializerOptions, cancellationToken).ConfigureAwait(false);
+        if (catalog is null) {
+            throw new InvalidDataException($"{displayName} did not contain a Terraria version catalog.");
+        }
+
+        Validate(catalog);
+        return catalog;
     }
 
     private static void Validate(TerrariaVersionCatalog catalog)
