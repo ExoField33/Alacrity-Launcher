@@ -8,5 +8,7 @@ Binaries can be found at [Releases](https://github.com/ExoField33/Alacrity-Launc
 You are required to have purchased a valid copy of Terraria on Steam or it will not work.
 When downloading a specific version of Terraria for the first time, you will be prompted for your password. The launcher does not store it; DepotDownloader saves its own Steam session credential for later depot downloads.
 
+Configs and input profiles are isolated between versions, while player and world data is isolated below 1.4. It still isn't recommended to use newer characters/worlds on older versions, but the option is there for testing purposes. 
+
 This launcher only works on Windows.
 <img width="1917" height="1047" alt="image" src="https://github.com/user-attachments/assets/63cc27e1-78af-46cc-8495-80131417d0b2" />
