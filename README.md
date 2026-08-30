@@ -1,6 +1,6 @@
 
 # Alacrity-Launcher
-A simple launcher for Terraria that supports older versions up to 1.2
+A simple launcher for Terraria that supports older versions up to pre-release 0.1.
 
 The launcher requires [.NET 10](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) to function.
 Binaries can be found at [Releases](https://github.com/ExoField33/Alacrity-Launcher/releases)
